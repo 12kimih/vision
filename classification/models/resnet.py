@@ -20,9 +20,9 @@ class BasicBlock(nn.Module):
         size: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: int = 3,
-        stride: int = 1,
-        expand_ratio: int = 1
+        kernel_size: int,
+        stride: int,
+        expand_ratio: int
     ) -> None:
         super().__init__()
 
@@ -65,9 +65,9 @@ class Bottleneck(nn.Module):
         size: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: int = 3,
-        stride: int = 1,
-        expand_ratio: int = 4
+        kernel_size: int,
+        stride: int,
+        expand_ratio: int
     ) -> None:
         super().__init__()
 
@@ -191,7 +191,7 @@ def resnet18(
 ) -> ResNet:
     return ResNet(
         configs = [
-            ResNetConfig('basicblock',  64,  64, 3, 2, 1, 2),
+            ResNetConfig('basicblock',  64,  64, 3, 1, 1, 2),
             ResNetConfig('basicblock',  64, 128, 3, 2, 1, 2),
             ResNetConfig('basicblock', 128, 256, 3, 2, 1, 2),
             ResNetConfig('basicblock', 256, 512, 3, 2, 1, 2)
@@ -210,7 +210,7 @@ def resnet34(
 ) -> ResNet:
     return ResNet(
         configs = [
-            ResNetConfig('basicblock',  64,  64, 3, 2, 1, 3),
+            ResNetConfig('basicblock',  64,  64, 3, 1, 1, 3),
             ResNetConfig('basicblock',  64, 128, 3, 2, 1, 4),
             ResNetConfig('basicblock', 128, 256, 3, 2, 1, 6),
             ResNetConfig('basicblock', 256, 512, 3, 2, 1, 3)
@@ -229,7 +229,7 @@ def resnet50(
 ) -> ResNet:
     return ResNet(
         configs = [
-            ResNetConfig('bottleneck',   64,  256, 3, 2, 4, 3),
+            ResNetConfig('bottleneck',   64,  256, 3, 1, 4, 3),
             ResNetConfig('bottleneck',  256,  512, 3, 2, 4, 4),
             ResNetConfig('bottleneck',  512, 1024, 3, 2, 4, 6),
             ResNetConfig('bottleneck', 1024, 2048, 3, 2, 4, 3)
@@ -248,7 +248,7 @@ def resnet101(
 ) -> ResNet:
     return ResNet(
         configs = [
-            ResNetConfig('bottleneck',   64,  256, 3, 2, 4,  3),
+            ResNetConfig('bottleneck',   64,  256, 3, 1, 4,  3),
             ResNetConfig('bottleneck',  256,  512, 3, 2, 4,  4),
             ResNetConfig('bottleneck',  512, 1024, 3, 2, 4, 23),
             ResNetConfig('bottleneck', 1024, 2048, 3, 2, 4,  3)
@@ -267,7 +267,7 @@ def resnet152(
 ) -> ResNet:
     return ResNet(
         configs = [
-            ResNetConfig('bottleneck',   64,  256, 3, 2, 4,  3),
+            ResNetConfig('bottleneck',   64,  256, 3, 1, 4,  3),
             ResNetConfig('bottleneck',  256,  512, 3, 2, 4,  8),
             ResNetConfig('bottleneck',  512, 1024, 3, 2, 4, 36),
             ResNetConfig('bottleneck', 1024, 2048, 3, 2, 4,  3)

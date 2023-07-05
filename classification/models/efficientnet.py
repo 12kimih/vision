@@ -45,9 +45,9 @@ class MBConv(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
-        stride: int = 1,
-        expand_ratio: int = 4,
-        squeeze_ratio: int = 4
+        stride: int,
+        expand_ratio: int,
+        squeeze_ratio: int
     ) -> None:
         super().__init__()
 
@@ -63,47 +63,39 @@ class MBConv(nn.Module):
         expand_channels = in_channels * expand_ratio
         squeeze_channels = in_channels // squeeze_ratio
 
-        self.expand = expand_ratio > 1
         self.residual = stride == 1 and in_channels == out_channels
 
-        self.bn1 = nn.BatchNorm2d(in_channels)
-        self.silu = nn.SiLU(inplace=True)
+        layers = []
+        if expand_ratio > 1:
+            layers.append(nn.Sequential(
+                nn.BatchNorm2d(in_channels),
+                nn.SiLU(inplace=True),
+                nn.Conv2d(in_channels, expand_channels, kernel_size=1, bias=False)
+            ))
+        layers.append(nn.Sequential(
+            nn.BatchNorm2d(expand_channels),
+            nn.SiLU(inplace=True),
+            nn.Conv2d(
+                expand_channels,
+                expand_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=(kernel_size - 1) // 2,
+                groups=expand_channels,
+                bias=False
+            )
+        ))
+        layers.append(nn.Sequential(
+            nn.BatchNorm2d(expand_channels),
+            nn.SiLU(inplace=True),
+            SE(expand_channels, squeeze_channels),
+            nn.Conv2d(expand_channels, out_channels, kernel_size=1, bias=False)
+        ))
 
-        self.se = SE(in_channels, squeeze_channels)
-
-        self.conv1 = nn.Conv2d(in_channels, expand_channels, kernel_size=1, bias=False)
-
-        self.bn2 = nn.BatchNorm2d(expand_channels)
-        self.conv2 = nn.Conv2d(
-            expand_channels,
-            expand_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=(kernel_size - 1) // 2,
-            groups=expand_channels,
-            bias=False
-        )
-
-        if self.expand:
-            self.bn3 = nn.BatchNorm2d(expand_channels)
-            self.conv3 = nn.Conv2d(expand_channels, out_channels, kernel_size=1, bias=False)
+        self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
-        out = self.bn1(x)
-        out = self.silu(out)
-
-        out = self.se(out)
-
-        out = self.conv1(out)
-
-        out = self.bn2(out)
-        out = self.silu(out)
-        out = self.conv2(out)
-
-        if self.expand:
-            out = self.bn3(out)
-            out = self.silu(out)
-            out = self.conv3(out)
+        out = self.layers(x)
 
         if self.residual:
             out += x
@@ -117,9 +109,9 @@ class FusedMBConv(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
-        stride: int = 1,
-        expand_ratio: int = 4,
-        squeeze_ratio: int = 4
+        stride: int,
+        expand_ratio: int,
+        squeeze_ratio: int
     ) -> None:
         super().__init__()
 
@@ -134,33 +126,45 @@ class FusedMBConv(nn.Module):
 
         expand_channels = in_channels * expand_ratio
 
-        self.expand = expand_ratio > 1
         self.residual = stride == 1 and in_channels == out_channels
 
-        self.bn1 = nn.BatchNorm2d(in_channels)
-        self.silu = nn.SiLU(inplace=True)
-        self.conv1 = nn.Conv2d(
-            in_channels,
-            expand_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=(kernel_size - 1) // 2,
-            bias=False
-        )
+        layers = []
+        if expand_ratio > 1:
+            layers.append(nn.Sequential(
+                nn.BatchNorm2d(in_channels),
+                nn.SiLU(inplace=True),
+                nn.Conv2d(
+                    in_channels,
+                    expand_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=(kernel_size - 1) // 2,
+                    bias=False
+                )
+            ))
+            layers.append(nn.Sequential(
+                nn.BatchNorm2d(expand_channels),
+                nn.SiLU(inplace=True),
+                nn.Conv2d(expand_channels, out_channels, kernel_size=1, bias=False)
+            ))
+        else:
+            layers.append(nn.Sequential(
+                nn.BatchNorm2d(in_channels),
+                nn.SiLU(inplace=True),
+                nn.Conv2d(
+                    in_channels,
+                    out_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=(kernel_size - 1) // 2,
+                    bias=False
+                )
+            ))
 
-        if self.expand:
-            self.bn2 = nn.BatchNorm2d(expand_channels)
-            self.conv2 = nn.Conv2d(expand_channels, out_channels, kernel_size=1, bias=False)
+        self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
-        out = self.bn1(x)
-        out = self.silu(out)
-        out = self.conv1(out)
-
-        if self.expand:
-            out = self.bn2(out)
-            out = self.silu(out)
-            out = self.conv2(out)
+        out = self.layers(x)
 
         if self.residual:
             out += x
@@ -256,10 +260,10 @@ def efficientnet_b0(
         configs = [
             EfficientNetConfig('mbconv',  32,  16, 3, 1, 1, 4, 1),
             EfficientNetConfig('mbconv',  16,  24, 3, 2, 6, 4, 2),
-            EfficientNetConfig('mbconv',  24,  40, 5, 1, 6, 4, 2),
+            EfficientNetConfig('mbconv',  24,  40, 3, 1, 6, 4, 2),
             EfficientNetConfig('mbconv',  40,  80, 3, 2, 6, 4, 3),
-            EfficientNetConfig('mbconv',  80, 112, 5, 1, 6, 4, 3),
-            EfficientNetConfig('mbconv', 112, 192, 5, 2, 6, 4, 4),
+            EfficientNetConfig('mbconv',  80, 112, 3, 1, 6, 4, 3),
+            EfficientNetConfig('mbconv', 112, 192, 3, 2, 6, 4, 4),
             EfficientNetConfig('mbconv', 192, 320, 3, 1, 6, 4, 1),
         ],
         size = size,
