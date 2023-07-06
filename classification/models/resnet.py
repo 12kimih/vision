@@ -41,11 +41,6 @@ class BasicBlock(nn.Module):
 
         self.bn1 = nn.BatchNorm2d(in_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=kernel_size, stride=stride, padding=1, bias=False)
-
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False)
-
         if stride == 2:
             if size % 2 == 0:
                 self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0, bias=False)
@@ -55,6 +50,10 @@ class BasicBlock(nn.Module):
             self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
         else:
             self.shortcut = None
+        self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=kernel_size, stride=stride, padding=1, bias=False)
+
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False)
 
     def forward(self, x):
         out = self.bn1(x)
@@ -95,14 +94,6 @@ class Bottleneck(nn.Module):
 
         self.bn1 = nn.BatchNorm2d(in_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=1, bias=False)
-
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(mid_channels, mid_channels, kernel_size=kernel_size, stride=stride, padding=1, bias=False)
-
-        self.bn3 = nn.BatchNorm2d(out_channels)
-        self.conv3 = nn.Conv2d(mid_channels, out_channels, kernel_size=1, bias=False)
-
         if stride == 2:
             if size % 2 == 0:
                 self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0, bias=False)
@@ -112,6 +103,13 @@ class Bottleneck(nn.Module):
             self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
         else:
             self.shortcut = None
+        self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=1, bias=False)
+
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(mid_channels, mid_channels, kernel_size=kernel_size, stride=stride, padding=1, bias=False)
+
+        self.bn3 = nn.BatchNorm2d(out_channels)
+        self.conv3 = nn.Conv2d(mid_channels, out_channels, kernel_size=1, bias=False)
 
     def forward(self, x):
         out = self.bn1(x)
@@ -143,13 +141,12 @@ class ResNet(nn.Module):
         self.size = size
 
         self.conv1 = nn.Conv2d(in_channels, configs[0].in_channels, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(configs[-1].out_channels)
-        self.relu = nn.ReLU(inplace=True)
-
         layers = []
         for config in configs:
             layers.append(self._make_layer(config))
         self.layers = nn.Sequential(*layers)
+        self.bn1 = nn.BatchNorm2d(configs[-1].out_channels)
+        self.relu = nn.ReLU(inplace=True)
 
         self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
         self.dropout = nn.Dropout(p=dropout, inplace=True)

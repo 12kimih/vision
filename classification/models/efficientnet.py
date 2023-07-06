@@ -68,6 +68,15 @@ class MBConv(nn.Module):
 
         self.bn1 = nn.BatchNorm2d(in_channels)
         self.silu = nn.SiLU(inplace=True)
+        if stride == 2:
+            if size % 2 == 0:
+                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0, bias=False)
+            else:
+                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, padding=0, bias=False)
+        elif in_channels != out_channels:
+            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        else:
+            self.shortcut = None
         self.se = SqueezeExcitation(in_channels, squeeze_ratio)
         self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=1, bias=False)
 
@@ -84,16 +93,6 @@ class MBConv(nn.Module):
 
         self.bn3 = nn.BatchNorm2d(mid_channels)
         self.conv3 = nn.Conv2d(mid_channels, out_channels, kernel_size=1, bias=False)
-
-        if stride == 2:
-            if size % 2 == 0:
-                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0, bias=False)
-            else:
-                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, padding=0, bias=False)
-        elif in_channels != out_channels:
-            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-        else:
-            self.shortcut = None
 
     def forward(self, x):
         out = self.bn1(x)
@@ -140,6 +139,15 @@ class FusedMBConv(nn.Module):
 
         self.bn1 = nn.BatchNorm2d(in_channels)
         self.silu = nn.SiLU(inplace=True)
+        if stride == 2:
+            if size % 2 == 0:
+                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0, bias=False)
+            else:
+                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, padding=0, bias=False)
+        elif in_channels != out_channels:
+            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        else:
+            self.shortcut = None
         self.se = SqueezeExcitation(in_channels, squeeze_ratio)
         self.conv1 = nn.Conv2d(
             in_channels,
@@ -152,16 +160,6 @@ class FusedMBConv(nn.Module):
 
         self.bn2 = nn.BatchNorm2d(mid_channels)
         self.conv2 = nn.Conv2d(mid_channels, out_channels, kernel_size=1, bias=False)
-
-        if stride == 2:
-            if size % 2 == 0:
-                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0, bias=False)
-            else:
-                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, padding=0, bias=False)
-        elif in_channels != out_channels:
-            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-        else:
-            self.shortcut = None
 
     def forward(self, x):
         out = self.bn1(x)
@@ -191,13 +189,12 @@ class EfficientNet(nn.Module):
         self.size = size
 
         self.conv1 = nn.Conv2d(in_channels, configs[0].in_channels, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(configs[-1].out_channels)
-        self.silu = nn.SiLU(inplace=True)
-
         layers = []
         for config in configs:
             layers.append(self._make_layer(config))
         self.layers = nn.Sequential(*layers)
+        self.bn1 = nn.BatchNorm2d(configs[-1].out_channels)
+        self.silu = nn.SiLU(inplace=True)
 
         self.conv2 = nn.Conv2d(configs[-1].out_channels, out_channels, kernel_size=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
