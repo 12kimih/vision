@@ -26,38 +26,47 @@ class BasicBlock(nn.Module):
     ) -> None:
         super().__init__()
 
-        if not (stride == 1 or stride == 2):
-            raise ValueError('stride must be 1 or 2')
+        mid_channels = out_channels // expand_ratio
 
-        if stride == 2:
+        if stride == 1:
+            if kernel_size % 2 == 0:
+                kernel_size -= 1
+        elif stride == 2:
             if kernel_size % 2 == 0 and size % 2 == 1:
                 kernel_size -= 1
             elif kernel_size % 2 == 1 and size % 2 == 0:
                 kernel_size += 1
-
-        channels = out_channels // expand_ratio
-
-        self.residual = stride == 1 and in_channels == out_channels
+        else:
+            raise ValueError('stride must be 1 or 2')
 
         self.bn1 = nn.BatchNorm2d(in_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.conv1 = nn.Conv2d(in_channels, channels, kernel_size=kernel_size, stride=stride, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=kernel_size, stride=stride, padding=1, bias=False)
+
         self.bn2 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False)
+
+        if stride == 2:
+            if size % 2 == 0:
+                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0, bias=False)
+            else:
+                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, padding=0, bias=False)
+        elif in_channels != out_channels:
+            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        else:
+            self.shortcut = None
 
     def forward(self, x):
         out = self.bn1(x)
         out = self.relu(out)
+        shortcut = x if self.shortcut is None else self.shortcut(out)
         out = self.conv1(out)
 
         out = self.bn2(out)
         out = self.relu(out)
         out = self.conv2(out)
 
-        if self.residual:
-            out += x
-
-        return out
+        return out + shortcut
 
 class Bottleneck(nn.Module):
     def __init__(
@@ -71,30 +80,43 @@ class Bottleneck(nn.Module):
     ) -> None:
         super().__init__()
 
-        if not (stride == 1 or stride == 2):
-            raise ValueError('stride must be 1 or 2')
+        mid_channels = out_channels // expand_ratio
 
-        if stride == 2:
+        if stride == 1:
+            if kernel_size % 2 == 0:
+                kernel_size -= 1
+        elif stride == 2:
             if kernel_size % 2 == 0 and size % 2 == 1:
                 kernel_size -= 1
             elif kernel_size % 2 == 1 and size % 2 == 0:
                 kernel_size += 1
-
-        channels = out_channels // expand_ratio
-
-        self.residual = stride == 1 and in_channels == out_channels
+        else:
+            raise ValueError('stride must be 1 or 2')
 
         self.bn1 = nn.BatchNorm2d(in_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.conv1 = nn.Conv2d(in_channels, channels, kernel_size=1, bias=False)
+        self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=1, bias=False)
+
         self.bn2 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(channels, channels, kernel_size=kernel_size, stride=stride, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(mid_channels, mid_channels, kernel_size=kernel_size, stride=stride, padding=1, bias=False)
+
         self.bn3 = nn.BatchNorm2d(out_channels)
-        self.conv3 = nn.Conv2d(channels, out_channels, kernel_size=1, bias=False)
+        self.conv3 = nn.Conv2d(mid_channels, out_channels, kernel_size=1, bias=False)
+
+        if stride == 2:
+            if size % 2 == 0:
+                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0, bias=False)
+            else:
+                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, padding=0, bias=False)
+        elif in_channels != out_channels:
+            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        else:
+            self.shortcut = None
 
     def forward(self, x):
         out = self.bn1(x)
         out = self.relu(out)
+        shortcut = x if self.shortcut is None else self.shortcut(out)
         out = self.conv1(out)
 
         out = self.bn2(out)
@@ -105,10 +127,7 @@ class Bottleneck(nn.Module):
         out = self.relu(out)
         out = self.conv3(out)
 
-        if self.residual:
-            out += x
-
-        return out
+        return out + shortcut
 
 class ResNet(nn.Module):
     def __init__(
@@ -124,17 +143,16 @@ class ResNet(nn.Module):
         self.size = size
 
         self.conv1 = nn.Conv2d(in_channels, configs[0].in_channels, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(configs[-1].out_channels)
+        self.relu = nn.ReLU(inplace=True)
 
         layers = []
         for config in configs:
             layers.append(self._make_layer(config))
         self.layers = nn.Sequential(*layers)
 
-        self.bn1 = nn.BatchNorm2d(configs[-1].out_channels)
-        self.relu = nn.ReLU(inplace=True)
-
         self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
-        self.dropout = nn.Dropout(p=dropout, inplace=True) if dropout > 0.0 else None
+        self.dropout = nn.Dropout(p=dropout, inplace=True)
         self.fc = nn.Linear(configs[-1].out_channels, num_classes)
 
         for m in self.modules():
@@ -169,16 +187,13 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         out = self.conv1(x)
-
         out = self.layers(out)
-
         out = self.bn1(out)
         out = self.relu(out)
 
         out = self.avgpool(out)
         out = torch.flatten(out, start_dim=1)
-        if self.dropout is not None:
-            out = self.dropout(out)
+        out = self.dropout(out)
         out = self.fc(out)
 
         return out
