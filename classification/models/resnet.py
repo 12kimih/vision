@@ -17,7 +17,6 @@ class ResNetConfig:
 class BasicBlock(nn.Module):
     def __init__(
         self,
-        size: int,
         in_channels: int,
         out_channels: int,
         kernel_size: int,
@@ -25,40 +24,20 @@ class BasicBlock(nn.Module):
         expand_ratio: int
     ) -> None:
         super().__init__()
-
         mid_channels = out_channels // expand_ratio
-
-        if stride == 1:
-            if kernel_size % 2 == 0:
-                kernel_size -= 1
-        elif stride == 2:
-            if kernel_size % 2 == 0 and size % 2 == 1:
-                kernel_size -= 1
-            elif kernel_size % 2 == 1 and size % 2 == 0:
-                kernel_size += 1
-        else:
-            raise ValueError('stride must be 1 or 2')
 
         self.bn1 = nn.BatchNorm2d(in_channels)
         self.relu = nn.ReLU(inplace=True)
-        if stride == 2:
-            if size % 2 == 0:
-                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0, bias=False)
-            else:
-                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, padding=0, bias=False)
-        elif in_channels != out_channels:
-            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-        else:
-            self.shortcut = None
-        self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=kernel_size, stride=stride, padding=1, bias=False)
+        self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False) if stride > 1 or in_channels != out_channels else None
+        self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=kernel_size, stride=stride, padding=(kernel_size - 1) // 2, bias=False)
 
         self.bn2 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(mid_channels, out_channels, kernel_size=kernel_size, padding=(kernel_size - 1) // 2, bias=False)
 
     def forward(self, x):
         out = self.bn1(x)
         out = self.relu(out)
-        shortcut = x if self.shortcut is None else self.shortcut(out)
+        shortcut = self.shortcut(out) if self.shortcut is not None else x
         out = self.conv1(out)
 
         out = self.bn2(out)
@@ -70,7 +49,6 @@ class BasicBlock(nn.Module):
 class Bottleneck(nn.Module):
     def __init__(
         self,
-        size: int,
         in_channels: int,
         out_channels: int,
         kernel_size: int,
@@ -78,35 +56,15 @@ class Bottleneck(nn.Module):
         expand_ratio: int
     ) -> None:
         super().__init__()
-
         mid_channels = out_channels // expand_ratio
-
-        if stride == 1:
-            if kernel_size % 2 == 0:
-                kernel_size -= 1
-        elif stride == 2:
-            if kernel_size % 2 == 0 and size % 2 == 1:
-                kernel_size -= 1
-            elif kernel_size % 2 == 1 and size % 2 == 0:
-                kernel_size += 1
-        else:
-            raise ValueError('stride must be 1 or 2')
 
         self.bn1 = nn.BatchNorm2d(in_channels)
         self.relu = nn.ReLU(inplace=True)
-        if stride == 2:
-            if size % 2 == 0:
-                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0, bias=False)
-            else:
-                self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, padding=0, bias=False)
-        elif in_channels != out_channels:
-            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-        else:
-            self.shortcut = None
+        self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False) if stride > 1 or in_channels != out_channels else None
         self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=1, bias=False)
 
         self.bn2 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(mid_channels, mid_channels, kernel_size=kernel_size, stride=stride, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(mid_channels, mid_channels, kernel_size=kernel_size, stride=stride, padding=(kernel_size - 1) // 2, bias=False)
 
         self.bn3 = nn.BatchNorm2d(out_channels)
         self.conv3 = nn.Conv2d(mid_channels, out_channels, kernel_size=1, bias=False)
@@ -114,7 +72,7 @@ class Bottleneck(nn.Module):
     def forward(self, x):
         out = self.bn1(x)
         out = self.relu(out)
-        shortcut = x if self.shortcut is None else self.shortcut(out)
+        shortcut = self.shortcut(out) if self.shortcut is not None else x
         out = self.conv1(out)
 
         out = self.bn2(out)
@@ -131,14 +89,11 @@ class ResNet(nn.Module):
     def __init__(
         self,
         configs: Sequence[ResNetConfig],
-        size: int = 224,
-        in_channels: int = 3,
-        num_classes: int = 1000,
-        dropout: float = 0.0
+        in_channels: int,
+        num_classes: int,
+        dropout: float
     ) -> None:
         super().__init__()
-
-        self.size = size
 
         self.conv1 = nn.Conv2d(in_channels, configs[0].in_channels, kernel_size=3, stride=1, padding=1, bias=False)
         layers = []
@@ -172,13 +127,9 @@ class ResNet(nn.Module):
         block = BasicBlock if config.block == 'basicblock' else Bottleneck
 
         layers = []
-        layers.append(block(self.size, config.in_channels, config.out_channels, config.kernel_size, config.stride, config.expand_ratio))
-
-        if config.stride == 2:
-            self.size = self.size // 2 if self.size % 2 == 0 else self.size // 2 + 1
-
+        layers.append(block(config.in_channels, config.out_channels, config.kernel_size, config.stride, config.expand_ratio))
         for _ in range(1, config.num_blocks):
-            layers.append(block(self.size, config.out_channels, config.out_channels, config.kernel_size, 1, config.expand_ratio))
+            layers.append(block(config.out_channels, config.out_channels, config.kernel_size, 1, config.expand_ratio))
 
         return nn.Sequential(*layers)
 
@@ -196,7 +147,6 @@ class ResNet(nn.Module):
         return out
 
 def resnet18(
-        size: int = 224,
         in_channels: int = 3,
         num_classes: int = 1000,
         dropout: float = 0.0
@@ -208,14 +158,12 @@ def resnet18(
             ResNetConfig('basicblock', 128, 256, 3, 2, 1, 2),
             ResNetConfig('basicblock', 256, 512, 3, 2, 1, 2)
         ],
-        size = size,
         in_channels = in_channels,
         num_classes = num_classes,
         dropout = dropout
     )
 
 def resnet34(
-        size: int = 224,
         in_channels: int = 3,
         num_classes: int = 1000,
         dropout: float = 0.0
@@ -227,14 +175,12 @@ def resnet34(
             ResNetConfig('basicblock', 128, 256, 3, 2, 1, 6),
             ResNetConfig('basicblock', 256, 512, 3, 2, 1, 3)
         ],
-        size = size,
         in_channels = in_channels,
         num_classes = num_classes,
         dropout = dropout
     )
 
 def resnet50(
-        size: int = 224,
         in_channels: int = 3,
         num_classes: int = 1000,
         dropout: float = 0.0
@@ -246,14 +192,12 @@ def resnet50(
             ResNetConfig('bottleneck',  512, 1024, 3, 2, 4, 6),
             ResNetConfig('bottleneck', 1024, 2048, 3, 2, 4, 3)
         ],
-        size = size,
         in_channels = in_channels,
         num_classes = num_classes,
         dropout = dropout
     )
 
 def resnet101(
-        size: int = 224,
         in_channels: int = 3,
         num_classes: int = 1000,
         dropout: float = 0.0
@@ -265,14 +209,12 @@ def resnet101(
             ResNetConfig('bottleneck',  512, 1024, 3, 2, 4, 23),
             ResNetConfig('bottleneck', 1024, 2048, 3, 2, 4,  3)
         ],
-        size = size,
         in_channels = in_channels,
         num_classes = num_classes,
         dropout = dropout
     )
 
 def resnet152(
-        size: int = 224,
         in_channels: int = 3,
         num_classes: int = 1000,
         dropout: float = 0.0
@@ -284,7 +226,6 @@ def resnet152(
             ResNetConfig('bottleneck',  512, 1024, 3, 2, 4, 36),
             ResNetConfig('bottleneck', 1024, 2048, 3, 2, 4,  3)
         ],
-        size = size,
         in_channels = in_channels,
         num_classes = num_classes,
         dropout = dropout
