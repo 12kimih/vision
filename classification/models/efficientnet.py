@@ -26,8 +26,9 @@ class SqueezeExcitation(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
         self.fc1 = nn.Conv2d(channels, mid_channels, kernel_size=1)
-        self.fc2 = nn.Conv2d(mid_channels, channels, kernel_size=1)
         self.activation = nn.SiLU(inplace=True)
+
+        self.fc2 = nn.Conv2d(mid_channels, channels, kernel_size=1)
         self.scale_activation = nn.Sigmoid()
 
     def forward(self, x):
