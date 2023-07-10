@@ -176,5 +176,5 @@ ipython_config.py
 #   git rm -r .ipynb_checkpoints/
 # <<< JupyterNotebooks <<<
 
-data/
-*.pt
+datasets/
+checkpoints/
