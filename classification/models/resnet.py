@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 @dataclass
-class ResNetConfig:
+class Config:
     block: str
     in_channels: int
     out_channels: int
@@ -88,7 +88,7 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
     def __init__(
         self,
-        configs: Sequence[ResNetConfig],
+        configs: Sequence[Config],
         in_channels: int,
         num_classes: int,
         dropout: float
@@ -153,10 +153,10 @@ def resnet18(
 ) -> ResNet:
     return ResNet(
         configs = [
-            ResNetConfig('basicblock',  64,  64, 3, 1, 1, 2),
-            ResNetConfig('basicblock',  64, 128, 3, 2, 1, 2),
-            ResNetConfig('basicblock', 128, 256, 3, 2, 1, 2),
-            ResNetConfig('basicblock', 256, 512, 3, 2, 1, 2)
+            Config('basicblock',  64,  64, 3, 1, 1, 2),
+            Config('basicblock',  64, 128, 3, 2, 1, 2),
+            Config('basicblock', 128, 256, 3, 2, 1, 2),
+            Config('basicblock', 256, 512, 3, 2, 1, 2)
         ],
         in_channels = in_channels,
         num_classes = num_classes,
@@ -170,10 +170,10 @@ def resnet34(
 ) -> ResNet:
     return ResNet(
         configs = [
-            ResNetConfig('basicblock',  64,  64, 3, 1, 1, 3),
-            ResNetConfig('basicblock',  64, 128, 3, 2, 1, 4),
-            ResNetConfig('basicblock', 128, 256, 3, 2, 1, 6),
-            ResNetConfig('basicblock', 256, 512, 3, 2, 1, 3)
+            Config('basicblock',  64,  64, 3, 1, 1, 3),
+            Config('basicblock',  64, 128, 3, 2, 1, 4),
+            Config('basicblock', 128, 256, 3, 2, 1, 6),
+            Config('basicblock', 256, 512, 3, 2, 1, 3)
         ],
         in_channels = in_channels,
         num_classes = num_classes,
@@ -187,10 +187,10 @@ def resnet50(
 ) -> ResNet:
     return ResNet(
         configs = [
-            ResNetConfig('bottleneck',   64,  256, 3, 1, 4, 3),
-            ResNetConfig('bottleneck',  256,  512, 3, 2, 4, 4),
-            ResNetConfig('bottleneck',  512, 1024, 3, 2, 4, 6),
-            ResNetConfig('bottleneck', 1024, 2048, 3, 2, 4, 3)
+            Config('bottleneck',   64,  256, 3, 1, 4, 3),
+            Config('bottleneck',  256,  512, 3, 2, 4, 4),
+            Config('bottleneck',  512, 1024, 3, 2, 4, 6),
+            Config('bottleneck', 1024, 2048, 3, 2, 4, 3)
         ],
         in_channels = in_channels,
         num_classes = num_classes,
@@ -204,10 +204,10 @@ def resnet101(
 ) -> ResNet:
     return ResNet(
         configs = [
-            ResNetConfig('bottleneck',   64,  256, 3, 1, 4,  3),
-            ResNetConfig('bottleneck',  256,  512, 3, 2, 4,  4),
-            ResNetConfig('bottleneck',  512, 1024, 3, 2, 4, 23),
-            ResNetConfig('bottleneck', 1024, 2048, 3, 2, 4,  3)
+            Config('bottleneck',   64,  256, 3, 1, 4,  3),
+            Config('bottleneck',  256,  512, 3, 2, 4,  4),
+            Config('bottleneck',  512, 1024, 3, 2, 4, 23),
+            Config('bottleneck', 1024, 2048, 3, 2, 4,  3)
         ],
         in_channels = in_channels,
         num_classes = num_classes,
@@ -221,10 +221,10 @@ def resnet152(
 ) -> ResNet:
     return ResNet(
         configs = [
-            ResNetConfig('bottleneck',   64,  256, 3, 1, 4,  3),
-            ResNetConfig('bottleneck',  256,  512, 3, 2, 4,  8),
-            ResNetConfig('bottleneck',  512, 1024, 3, 2, 4, 36),
-            ResNetConfig('bottleneck', 1024, 2048, 3, 2, 4,  3)
+            Config('bottleneck',   64,  256, 3, 1, 4,  3),
+            Config('bottleneck',  256,  512, 3, 2, 4,  8),
+            Config('bottleneck',  512, 1024, 3, 2, 4, 36),
+            Config('bottleneck', 1024, 2048, 3, 2, 4,  3)
         ],
         in_channels = in_channels,
         num_classes = num_classes,
