@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 @dataclass
-class Config:
+class EfficientNetConfig:
     block: str
     in_channels: int
     out_channels: int
@@ -121,7 +121,7 @@ class FusedMBConv(nn.Module):
 class EfficientNet(nn.Module):
     def __init__(
         self,
-        configs: Sequence[Config],
+        configs: Sequence[EfficientNetConfig],
         in_channels: int,
         out_channels: int,
         num_classes: int,
@@ -195,13 +195,13 @@ def efficientnet_b0(
 ) -> EfficientNet:
     return EfficientNet(
         configs = [
-            Config('mbconv',  32,  16, 3, 1, 1, 4, 1),
-            Config('mbconv',  16,  24, 3, 2, 6, 4, 2),
-            Config('mbconv',  24,  40, 3, 1, 6, 4, 2),
-            Config('mbconv',  40,  80, 3, 2, 6, 4, 3),
-            Config('mbconv',  80, 112, 3, 1, 6, 4, 3),
-            Config('mbconv', 112, 192, 3, 2, 6, 4, 4),
-            Config('mbconv', 192, 320, 3, 1, 6, 4, 1),
+            EfficientNetConfig('mbconv',  32,  16, 3, 1, 1, 4, 1),
+            EfficientNetConfig('mbconv',  16,  24, 3, 2, 6, 4, 2),
+            EfficientNetConfig('mbconv',  24,  40, 3, 1, 6, 4, 2),
+            EfficientNetConfig('mbconv',  40,  80, 3, 2, 6, 4, 3),
+            EfficientNetConfig('mbconv',  80, 112, 3, 1, 6, 4, 3),
+            EfficientNetConfig('mbconv', 112, 192, 3, 2, 6, 4, 4),
+            EfficientNetConfig('mbconv', 192, 320, 3, 1, 6, 4, 1),
         ],
         in_channels = in_channels,
         out_channels = out_channels,
@@ -217,12 +217,12 @@ def efficientnetv2_s(
 ) -> EfficientNet:
     return EfficientNet(
         configs = [
-            Config('fusedmbconv',  24,  24, 3, 1, 1, 4,  2),
-            Config('fusedmbconv',  24,  48, 3, 2, 4, 4,  4),
-            Config('fusedmbconv',  48,  64, 3, 1, 4, 4,  4),
-            Config(     'mbconv',  64, 128, 3, 2, 4, 4,  6),
-            Config(     'mbconv', 128, 160, 3, 1, 6, 4,  9),
-            Config(     'mbconv', 160, 256, 3, 2, 6, 4, 15),
+            EfficientNetConfig('fusedmbconv',  24,  24, 3, 1, 1, 4,  2),
+            EfficientNetConfig('fusedmbconv',  24,  48, 3, 2, 4, 4,  4),
+            EfficientNetConfig('fusedmbconv',  48,  64, 3, 1, 4, 4,  4),
+            EfficientNetConfig(     'mbconv',  64, 128, 3, 2, 4, 4,  6),
+            EfficientNetConfig(     'mbconv', 128, 160, 3, 1, 6, 4,  9),
+            EfficientNetConfig(     'mbconv', 160, 256, 3, 2, 6, 4, 15),
         ],
         in_channels = in_channels,
         out_channels = out_channels,
