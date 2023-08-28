@@ -3,7 +3,7 @@
 # change as you wish
 default_name="vision"
 conda_packages=(
-    "pip ipykernel ipywidgets autopep8 black"
+    "pip jupyter ipykernel ipywidgets autopep8 black"
     "numpy scipy matplotlib"
     "pytorch torchvision torchaudio pytorch-cuda -c pytorch -c nvidia"
 )
